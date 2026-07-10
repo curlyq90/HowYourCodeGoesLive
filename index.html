@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How your code goes live — inside the machine</title>
+<meta name="description" content="A scroll-driven 3D tour of how one code change travels from your laptop through GitHub and Vercel to your live site — in plain English, for non-engineers.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%233D6FF0'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-weight='800' font-size='20' fill='%23fff' text-anchor='middle'%3Eg%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+  <!-- fixed WebGL world -->
+  <canvas id="gl"></canvas>
+
+  <!-- fixed chrome -->
+  <header class="hud-header">
+    <a class="brand" href="#top">
+      <span class="brand-mark">g</span>
+      <span class="brand-text">HOW YOUR CODE<br>GOES LIVE</span>
+    </a>
+    <div class="hud-progress" id="hud-progress" aria-label="Journey progress">
+      <div class="hud-progress-fill" id="hud-fill"></div>
+      <!-- step stops injected by JS -->
+    </div>
+    <div class="hud-step mono" id="hud-step">BOOT</div>
+    <button class="hud-btn mono" id="btn-jargon" aria-haspopup="dialog">JARGON</button>
+  </header>
+
+  <!-- scroll track: sections drive the camera -->
+  <main id="track">
+
+    <!-- INTRO -->
+    <section class="beat beat-intro" id="top" data-beat="0">
+      <div class="copy copy-hero">
+        <div class="kicker mono">FOR THE NON-ENGINEER FOUNDER</div>
+        <h1>The invisible journey of one code change.</h1>
+        <p class="lede">You ask your AI for a change, open a PR, and merge — and it goes live.
+        But a lot happens in between that you never see. Scroll to step inside the machine and
+        follow a single change from your laptop to <span class="mono ink">mypicnic.app</span>.</p>
+        <div class="hero-chip mono" id="hero-chip">▼ SCROLL TO ENTER</div>
+      </div>
+    </section>
+
+    <!-- 10 beats injected by JS from content.js -->
+    <div id="beats"></div>
+
+    <!-- OUTRO -->
+    <section class="beat beat-outro" data-beat="11">
+      <div class="copy copy-outro">
+        <div class="kicker mono">THE WHOLE LOOP</div>
+        <h2>That's the entire trick.</h2>
+        <p>Branch → edit → commit → push → pull request → checks → preview →
+        merge → live. Every button you press on GitHub or Vercel — and every command
+        your AI runs for you — is just one of these steps wearing a suit. Now you know
+        what's behind it.</p>
+        <button class="btn mono" id="btn-restart">⟲ RUN IT AGAIN</button>
+        <button class="btn mono btn-ghost" id="btn-jargon-outro">LOOK UP THE JARGON</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JARGON overlay (built by JS) -->
+  <div id="jargon" role="dialog" aria-modal="true" aria-label="Jargon buster" hidden>
+    <div class="jargon-inner">
+      <div class="jargon-head">
+        <div>
+          <div class="kicker k-vercel mono">SPEAK THE LANGUAGE</div>
+          <h2>Jargon buster</h2>
+          <p class="jargon-sub">Tap any term for a one-line, no-nonsense definition.</p>
+        </div>
+        <button class="hud-btn mono" id="btn-jargon-close" aria-label="Close">✕ CLOSE</button>
+      </div>
+      <div class="jargon-chips" id="jargon-chips"></div>
+      <div class="jargon-def">
+        <div class="jargon-term" id="jargon-term"></div>
+        <p class="jargon-text" id="jargon-text"></p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
