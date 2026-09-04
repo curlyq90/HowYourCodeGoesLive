@@ -338,7 +338,21 @@ document.addEventListener('click', e => {
   }
 });
 
+// ---------- run it again: rewind the world, then fly back to the top ----------
+function resetJourney() {
+  if (world) world.reset();
+  autoFired.clear();
+  BEATS.forEach(b => {
+    if (!b.action) return;
+    const btn = document.querySelector(`[data-event="${b.action.event}"]`);
+    const status = document.querySelector(`[data-status="${b.action.event}"]`);
+    if (btn) { btn.disabled = false; btn.textContent = b.action.label; }
+    if (status) { status.hidden = true; status.className = 'status-line'; status.textContent = ''; }
+  });
+}
 document.getElementById('btn-restart').addEventListener('click', () => {
+  if (mapOn) setMap(false);
+  resetJourney();
   lenis.scrollTo(0, { duration: 2.2 });
 });
 

@@ -694,6 +694,7 @@ export function createWorld(canvas) {
   eq.rotation.x = Math.PI / 2.4;
   globeGrp.add(eq);
   const urlLbl = label({ text: 'mypicnic.app', color: '#9a9ea8', w: 4.4, h: 0.72, fs: 17 });
+  const urlLblIdleMap = urlLbl.material.map;
   urlLbl.position.set(0, -6.0, 0);
   globeGrp.add(urlLbl);
   const liveLbl = label({ text: '● LIVE — everyone can see it', color: '#166a49', w: 6.6, h: 0.6, bg: '#E9F7F0' });
@@ -862,7 +863,16 @@ export function createWorld(canvas) {
   // ============================================================
   // event animations
   // ============================================================
-  const api = { setProgress, setOverview, resize, update, trigger, states: {}, reducedMotion: false };
+  const api = { setProgress, setOverview, resize, update, trigger, reset, states: {}, reducedMotion: false };
+
+  // Every event animation belongs to a "run". reset() bumps the run, so
+  // any delayed step still pending from the previous run quietly no-ops.
+  let run = 0;
+  const later = (t, fn) => {
+    const my = run;
+    return gsap.delayedCall(t, () => { if (my === run) fn(); });
+  };
+  let mergeNode = null;
 
   function trigger(event) {
     switch (event) {
@@ -884,7 +894,7 @@ export function createWorld(canvas) {
       gsap.to(sealRing.position, { y: 2.3, duration: 0.55, ease: 'power3.in' });
       gsap.to(sealRing.scale, { x: 1.5, y: 1.5, z: 1.5, duration: 0.4, delay: 0.55, ease: 'power2.out' });
       gsap.to(sealRing.material, { opacity: 0, duration: 0.4, delay: 0.6, onStart: () => { sealRing.material.transparent = true; } });
-      gsap.delayedCall(0.55, () => {
+      later(0.55, () => {
         gemMat.wireframe = false;
         gemMat.opacity = 1;
         gemMat.emissiveIntensity = 0.5;
@@ -906,7 +916,7 @@ export function createWorld(canvas) {
         gsap.to(bar.position, { y: 5.6 + i * 0.22, duration: 0.7, delay: i * 0.08, ease: 'power2.inOut' });
         gsap.to(bar.material, { opacity: 0, duration: 0.4, delay: 0.5 + i * 0.08 });
       });
-      gsap.delayedCall(1.0, () => { bars.visible = false; res(); });
+      later(1.0, () => { bars.visible = false; res(); });
     });
   }
 
@@ -923,19 +933,19 @@ export function createWorld(canvas) {
     return new Promise(res => {
       arches.forEach((a, i) => {
         const t0 = i * 0.95;
-        gsap.delayedCall(t0, () => {
+        later(t0, () => {
           a.lampMat.color.copy(amber);
           a.lampMat.emissive.copy(amber);
           gsap.fromTo(a.beamMat, { opacity: 0.85 }, { opacity: 0, duration: 0.8, ease: 'power1.in' });
           gsap.fromTo(a.beam.position, { y: 2.6 }, { y: 0.4, duration: 0.75, ease: 'power1.inOut' }); // beam sweep
         });
-        gsap.delayedCall(t0 + 0.85, () => {
+        later(t0 + 0.85, () => {
           a.lampMat.color.copy(green);
           a.lampMat.emissive.copy(green);
           gsap.fromTo(a.grp.scale, { x: 1.06, y: 1.06, z: 1.06 }, { x: 1, y: 1, z: 1, duration: 0.3 });
         });
       });
-      gsap.delayedCall(arches.length * 0.95 + 0.4, () => {
+      later(arches.length * 0.95 + 0.4, () => {
         api.states.checks = true;
         api.states.checksRunning = false;
         res();
@@ -949,7 +959,7 @@ export function createWorld(canvas) {
     return new Promise(res => {
       gsap.to(podIdle.material, { opacity: 0, duration: 0.3, onStart: () => { podIdle.material.transparent = true; }, onComplete: () => { podIdle.visible = false; } });
       gsap.to(pylon.material, { opacity: 0.7, duration: 1.2 });
-      gsap.delayedCall(0.9, () => {
+      later(0.9, () => {
         podGrp.visible = true;
         gsap.to(podGrp.scale, { x: 1, y: 1, z: 1, duration: 0.9, ease: 'elastic.out(1,0.65)', onComplete: res });
       });
@@ -965,10 +975,11 @@ export function createWorld(canvas) {
       gsap.to(weldRing.scale, { x: 2.2, y: 2.2, z: 2.2, duration: 0.8, delay: 0.5, ease: 'power2.out' });
       gsap.to(weldRing.material, { opacity: 0, duration: 0.5, delay: 1.1, onComplete: res });
       // a new chrome node lands on main
-      gsap.delayedCall(0.9, () => {
+      later(0.9, () => {
         const n = new THREE.Mesh(nodeGeo, M.chrome);
         n.position.set(127.5, 0.35, 0);
         scene.add(n);
+        mergeNode = n;
         gsap.fromTo(n.scale, { x: 0.01, y: 0.01, z: 0.01 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: 'back.out(2.5)' });
       });
     });
@@ -980,7 +991,7 @@ export function createWorld(canvas) {
     return new Promise(res => {
       gsap.to(beamMat10, { opacity: 0.4, duration: 0.5 });
       gsap.to(gemState, { offsetY: 9.8, duration: 1.6, ease: 'power2.inOut' });
-      gsap.delayedCall(1.7, () => {
+      later(1.7, () => {
         // burst!
         gemState.visible = 0; gem.visible = false;
         gsap.to(beamMat10, { opacity: 0, duration: 0.6 });
@@ -1001,9 +1012,54 @@ export function createWorld(canvas) {
         urlLbl.material.needsUpdate = true;
         liveLbl.visible = true;
         gsap.fromTo(liveLbl.scale, { x: 0.01, y: 0.01, z: 0.01 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: 'back.out(2)' });
-        gsap.delayedCall(1.2, res);
+        later(1.2, res);
       });
     });
+  }
+
+  // ============================================================
+  // reset — rewind every event animation to its untouched state
+  // ============================================================
+  function reset() {
+    run++;
+    gsap.killTweensOf([
+      sealRing.position, sealRing.scale, sealRing.material, gemMat, gem.scale, hashLbl.scale,
+      ...bars.children.map(b => b.position), ...bars.children.map(b => b.material),
+      ...arches.flatMap(a => [a.beamMat, a.beam.position, a.grp.scale]),
+      podIdle.material, pylon.material, podGrp.scale,
+      mergeMat, weldRing.material, weldRing.scale,
+      beamMat10, gemState, globeMat, liveLbl.scale,
+    ]);
+    for (const k of Object.keys(api.states)) delete api.states[k];
+
+    // commit
+    gemState.sealed = false; gemState.offsetY = 0; gemState.burst = false;
+    sealRing.position.y = 4.6; sealRing.scale.setScalar(1); sealRing.material.opacity = 1;
+    gemMat.wireframe = true; gemMat.opacity = 0.3; gemMat.emissiveIntensity = 0.12;
+    hashLbl.visible = false;
+    // pull request
+    setPRCard(false);
+    bars.visible = true;
+    bars.children.forEach((bar, i) => { bar.position.y = 0.8 + i * 1.1; bar.material.opacity = 1; });
+    // checks
+    arches.forEach(a => {
+      a.lampMat.color.set(0xCFC9B8); a.lampMat.emissive.set(0x000000);
+      a.beamMat.opacity = 0; a.beam.position.y = 1.4; a.grp.scale.setScalar(1);
+    });
+    // preview
+    podIdle.visible = true; podIdle.material.opacity = 1;
+    pylon.material.opacity = 0.25;
+    podGrp.visible = false; podGrp.scale.setScalar(0.001);
+    // merge
+    mergeMat.opacity = 0.18; mergeMat.emissiveIntensity = 0;
+    weldRing.material.opacity = 0; weldRing.material.emissiveIntensity = 0; weldRing.scale.setScalar(1);
+    if (mergeNode) { scene.remove(mergeNode); mergeNode = null; }
+    // ship
+    beamMat10.opacity = 0;
+    burstT = -1; burstPts.visible = false; burstMat.opacity = 0;
+    globeMat.opacity = 0.4;
+    urlLbl.material.map = urlLblIdleMap; urlLbl.material.needsUpdate = true;
+    liveLbl.visible = false; liveLbl.scale.setScalar(1);
   }
 
   // ============================================================
