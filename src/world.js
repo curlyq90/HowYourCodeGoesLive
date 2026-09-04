@@ -156,7 +156,7 @@ export function createWorld(canvas) {
   scene.background = new THREE.Color(C.paper);
   scene.fog = new THREE.Fog(C.paper, 70, 220);
 
-  const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 400);
+  const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 900);
   camera.position.set(70, 55, 120);
 
   // environment for chrome reflections
@@ -729,6 +729,27 @@ export function createWorld(canvas) {
   let burstT = -1;
 
   // ============================================================
+  // map-mode beacon — a "you are here" marker tall enough to read
+  // from the aerial overview, where the gem itself is a speck
+  // ============================================================
+  const beaconGrp = new THREE.Group();
+  const beaconMat = new THREE.MeshBasicMaterial({ color: C.blue, transparent: true, opacity: 0, depthWrite: false });
+  const beaconPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.55, 16, 12, 1, true), beaconMat);
+  beaconPillar.position.y = 8;
+  beaconGrp.add(beaconPillar);
+  const beaconRingMat = new THREE.MeshBasicMaterial({ color: C.blue, transparent: true, opacity: 0, depthWrite: false });
+  const beaconRing = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.2, 8, 48), beaconRingMat);
+  beaconRing.rotation.x = Math.PI / 2;
+  beaconRing.position.y = 0.4;
+  beaconGrp.add(beaconRing);
+  const beaconTipMat = new THREE.MeshBasicMaterial({ color: C.blue, transparent: true, opacity: 0, depthWrite: false });
+  const beaconTip = new THREE.Mesh(new THREE.OctahedronGeometry(1.2), beaconTipMat);
+  beaconTip.position.y = 17;
+  beaconGrp.add(beaconTip);
+  beaconGrp.visible = false;
+  scene.add(beaconGrp);
+
+  // ============================================================
   // camera keyframes — one per beat (0 = intro … 11 = outro)
   // ============================================================
   const sideOff = s => (s === 'right' ? 3.0 : s === 'left' ? -3.0 : 0);
@@ -763,6 +784,29 @@ export function createWorld(canvas) {
 
   const smooth = t => t * t * (3 - 2 * t);
 
+  // ---------- map mode: aerial overview of the whole line ----------
+  // The beacon follows the *whole* journey, including the beats before
+  // the gem exists (branch, worktree, edit). [progress, x, z]
+  const MAP_PATH = [
+    [0, -14, 0], [1, 1, 2], [2, 16.5, 10.5], [3, 32, 6.5], [4, 48, 6],
+    [5, 64, 6], [6, 80, 6], [7, 98, 6], [8, 110, 6], [9, 127.5, 0.6],
+    [10, 142, 0], [11, 154, 0],
+  ];
+  const overview = { mix: 0 };   // 0 = scroll-driven camera … 1 = aerial map
+  const MAP_LOOK = new THREE.Vector3(66, 2, 0);
+  const MAP_DIR = new THREE.Vector3(0, 0.62, 0.78).normalize();
+  const _mp = new THREE.Vector3();
+  function mapCameraPos(out) {
+    // pull back far enough that x ≈ -34 … 166 fits the frame at any aspect
+    const halfW = 100;
+    const d = Math.min(460, Math.max(150, halfW / (Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect)));
+    return out.copy(MAP_DIR).multiplyScalar(d).add(MAP_LOOK);
+  }
+  function setOverview(on, duration = 1.5) {
+    gsap.killTweensOf(overview);
+    gsap.to(overview, { mix: on ? 1 : 0, duration: api.reducedMotion ? 0 : duration, ease: 'power2.inOut' });
+  }
+
   let progress = 0;
   let clockT = 0;
 
@@ -777,6 +821,14 @@ export function createWorld(canvas) {
     _la.set(...A.look); _lb.set(...B.look);
     camera.position.lerpVectors(_pa, _pb, f);
     camLook.lerpVectors(_la, _lb, f);
+    if (overview.mix > 0) {
+      const m = smooth(overview.mix);
+      camera.position.lerp(mapCameraPos(_mp), m);
+      camLook.lerp(MAP_LOOK, m);
+    }
+    // the map needs to see the far end of the strip, so push the fog out
+    scene.fog.near = 70 + overview.mix * 280;
+    scene.fog.far = 220 + overview.mix * 520;
     if (!api.reducedMotion) {
       // gentle idle sway
       camera.position.y += Math.sin(clockT * 0.6) * 0.12;
@@ -803,14 +855,14 @@ export function createWorld(canvas) {
     );
     gem.rotation.y += dt * 0.9;
     gem.rotation.x = Math.sin(clockT * 0.8) * 0.18;
-    const s = 1 * gemState.visible;
+    const s = gemState.visible * (1 + overview.mix * 1.8);
     gem.scale.setScalar(Math.max(s, 0.001));
   }
 
   // ============================================================
   // event animations
   // ============================================================
-  const api = { setProgress, resize, update, trigger, states: {}, reducedMotion: false };
+  const api = { setProgress, setOverview, resize, update, trigger, states: {}, reducedMotion: false };
 
   function trigger(event) {
     switch (event) {
@@ -961,6 +1013,23 @@ export function createWorld(canvas) {
     clockT += dt;
     updateCamera();
     updateGem(dt);
+
+    // map-mode beacon follows the whole journey
+    beaconGrp.visible = overview.mix > 0.01;
+    if (beaconGrp.visible) {
+      const p = Math.max(0, Math.min(progress, MAP_PATH.length - 1));
+      const i = Math.min(Math.floor(p), MAP_PATH.length - 2);
+      const f = smooth(p - i);
+      const A = MAP_PATH[i], B = MAP_PATH[i + 1];
+      beaconGrp.position.set(A[1] + (B[1] - A[1]) * f, 0, A[2] + (B[2] - A[2]) * f);
+      const o = overview.mix;
+      beaconMat.opacity = 0.3 * o;
+      beaconRingMat.opacity = 0.8 * o;
+      beaconTipMat.opacity = 0.95 * o;
+      beaconTip.rotation.y += dt * 1.2;
+      beaconTip.position.y = 17 + Math.sin(clockT * 1.5) * 0.5;
+      beaconRing.scale.setScalar(1 + Math.sin(clockT * 2.2) * 0.12);
+    }
 
     // flowing push dashes
     for (let i = 0; i < dashCount; i++) {

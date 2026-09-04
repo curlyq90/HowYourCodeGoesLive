@@ -85,21 +85,66 @@ body{
 }
 .hud-progress{
   flex:1;
-  height:10px;
+  height:12px;
   border:1.5px solid var(--ink);
   background:var(--paper);
   box-shadow:2px 2px 0 rgba(34,36,43,.25);
   max-width:520px;
   margin:0 auto;
-  position:relative;
   pointer-events:auto;
 }
-.hud-progress-fill{
+
+/* ---------- timeline scrubber (header bar + map panel bar) ----------
+   Drag anywhere = scrub. Click a stop = snap to that step.
+   The diamond playhead echoes the gem that travels the pipeline. */
+.scrub{
+  position:relative;
+  cursor:ew-resize;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.scrub-fill{
   height:100%;
   width:0%;
   background:repeating-linear-gradient(90deg,var(--blue) 0 6px,#6a92f5 6px 12px);
+  pointer-events:none;
 }
-/* clickable step stops on the bar */
+.scrub-head{
+  position:absolute;
+  top:50%;left:0;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  z-index:3;
+}
+.scrub-gem{
+  display:block;
+  width:13px;height:13px;
+  background:var(--paper);
+  border:2px solid var(--ink);
+  box-shadow:2px 2px 0 rgba(34,36,43,.35);
+  transform:rotate(45deg);
+  transition:transform .15s,background .15s;
+}
+.scrub:hover .scrub-gem,.scrub.active .scrub-gem{transform:rotate(45deg) scale(1.25);background:#EEF3FF}
+.scrub.dragging .scrub-gem{background:var(--blue)}
+.scrub-hint{
+  position:absolute;
+  top:calc(100% + 9px);left:0;
+  transform:translateX(-50%);
+  font-size:9px;font-weight:700;letter-spacing:.08em;
+  color:var(--ink);
+  background:var(--paper);
+  border:1px solid var(--ink);
+  padding:2px 6px;
+  white-space:nowrap;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .12s;
+  z-index:4;
+}
+.scrub-hint.show{opacity:1}
+/* step stops on the bar */
 .stop{
   position:absolute;
   top:50%;
@@ -110,26 +155,12 @@ body{
   background:var(--paper);
   cursor:pointer;
   transition:background .2s,transform .2s;
+  z-index:2;
 }
 .stop:hover{transform:translate(-50%,-50%) scale(1.35)}
 .stop.done{background:var(--indigo)}
 .stop.current{background:var(--blue);transform:translate(-50%,-50%) scale(1.45)}
-.stop .stop-lbl{
-  position:absolute;
-  top:14px;left:50%;
-  transform:translateX(-50%);
-  font-family:'JetBrains Mono';
-  font-size:9px;font-weight:700;letter-spacing:.08em;
-  color:var(--ink);
-  background:var(--paper);
-  border:1px solid var(--ink);
-  padding:2px 6px;
-  white-space:nowrap;
-  opacity:0;
-  pointer-events:none;
-  transition:opacity .15s;
-}
-.stop:hover .stop-lbl,.stop.current:hover .stop-lbl{opacity:1}
+.stop-lbl{display:none}
 .hud-btn{
   pointer-events:auto;
   font-size:11px;font-weight:700;letter-spacing:.12em;
@@ -141,6 +172,8 @@ body{
   cursor:pointer;
 }
 .hud-btn:hover{background:#EEF3FF}
+.hud-btn{white-space:nowrap}
+.hud-btn[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 .hud-step{
   font-size:11px;
   font-weight:700;
@@ -381,7 +414,9 @@ body{
 .btn.b-green{background:var(--green)}
 .btn.b-indigo{background:var(--indigo)}
 .btn.b-purple{background:var(--purple)}
-.btn.btn-ghost{background:var(--paper);color:var(--ink);margin-left:10px}
+.btn.btn-ghost{background:var(--paper);color:var(--ink)}
+.btn-row{display:flex;flex-wrap:wrap;gap:12px 10px;margin-top:18px}
+.btn-row .btn{margin-top:0}
 .btn[disabled]{opacity:.55;cursor:default;transform:none}
 
 .hero-chip{
@@ -412,6 +447,89 @@ body{
 }
 .status-line.ok{border-color:var(--green);color:var(--green-deep);background:#E9F7F0}
 .status-line.busy{border-color:var(--amber);color:#8a6414;background:#FBF1DF}
+
+/* ---------- map mode: the whole line, zoomed out ---------- */
+#track{transition:opacity .45s}
+body.map-mode #track{opacity:0;pointer-events:none}
+body.map-mode #track .copy{pointer-events:none}
+#map-panel{
+  position:fixed;
+  left:0;right:0;bottom:0;
+  z-index:45;
+  padding:0 22px 18px;
+  transform:translateY(112%);
+  transition:transform .55s cubic-bezier(.2,.8,.2,1);
+  pointer-events:none;
+}
+body.map-mode #map-panel{transform:none;pointer-events:auto}
+.map-inner{
+  max-width:1100px;
+  margin:0 auto;
+  background:var(--paper);
+  border:2px solid var(--ink);
+  box-shadow:7px 7px 0 rgba(34,36,43,.9);
+  padding:16px 22px 14px;
+}
+.map-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:10px;
+}
+.map-top .kicker{margin-bottom:8px}
+.map-caption{
+  font-family:'Bricolage Grotesque';
+  font-weight:700;
+  font-size:18px;
+  letter-spacing:-.01em;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+  min-height:26px;
+}
+.map-caption .machine{
+  font-family:'JetBrains Mono';
+  font-size:10px;font-weight:700;letter-spacing:.1em;
+  padding:3px 8px;
+  border:1.5px solid currentColor;
+}
+.map-scrub{
+  height:14px;
+  border:1.5px solid var(--ink);
+  background:var(--paper);
+  box-shadow:2px 2px 0 rgba(34,36,43,.25);
+  margin:14px 0 44px;
+}
+.map-scrub .stop{width:13px;height:13px}
+.map-scrub .stop-lbl.always{
+  display:block;
+  position:absolute;
+  top:15px;left:50%;
+  transform:translateX(-50%);
+  font-family:'JetBrains Mono';
+  font-size:9px;font-weight:700;letter-spacing:.06em;
+  line-height:1.4;
+  text-align:center;
+  white-space:nowrap;
+  color:var(--ink-faint);
+  pointer-events:none;
+  transition:color .2s;
+}
+.map-scrub .stop.done .stop-lbl,.map-scrub .stop.current .stop-lbl{color:var(--ink)}
+.map-scrub .stop.current .stop-lbl{color:var(--blue)}
+.m-computer{color:var(--blue)}
+.m-github{color:var(--indigo-deep)}
+.m-vercel{color:#5a3fd6}
+.map-foot{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 18px;
+  font-size:10px;font-weight:700;letter-spacing:.1em;
+  color:var(--ink-faint);
+}
+.map-foot .map-tip{margin-left:auto}
 
 /* ---------- boot overlay ---------- */
 #boot{
@@ -445,8 +563,19 @@ body{
   .beat{padding:0 5vw;min-height:150vh}
   .copy{width:min(430px,92vw)}
   .hud-step{display:none}
+  .hud-header{gap:10px;padding:12px 14px}
+  .brand-text{display:none}
+  .hud-btn{padding:7px 9px;font-size:10px}
+  .hud-progress{max-width:none;margin:0}
+  body.map-mode .hud-progress{display:none} /* the map panel has the big one */
+  #map-panel{padding:0 10px 10px}
+  .map-inner{padding:14px 16px 12px}
+  .map-scrub{margin-bottom:16px}
+  .map-scrub .stop-lbl.always{display:none}
+  .map-foot .map-tip{display:none}
 }
 
 @media (prefers-reduced-motion:reduce){
   .hero-chip{animation:none}
+  #map-panel,#track{transition:none}
 }
