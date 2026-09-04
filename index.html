@@ -22,11 +22,10 @@
       <span class="brand-mark">g</span>
       <span class="brand-text">HOW YOUR CODE<br>GOES LIVE</span>
     </a>
-    <div class="hud-progress" id="hud-progress" aria-label="Journey progress">
-      <div class="hud-progress-fill" id="hud-fill"></div>
-      <!-- step stops injected by JS -->
-    </div>
+    <!-- journey timeline: drag to move through it, click a stop to jump (built by JS) -->
+    <div class="hud-progress" id="hud-progress" aria-label="Journey timeline"></div>
     <div class="hud-step mono" id="hud-step">BOOT</div>
+    <button class="hud-btn mono" id="btn-map" aria-pressed="false" title="Zoom out to see the whole pipeline">⤢ MAP</button>
     <button class="hud-btn mono" id="btn-jargon" aria-haspopup="dialog">JARGON</button>
   </header>
 
@@ -57,8 +56,11 @@
         merge → live. Every button you press on GitHub or Vercel — and every command
         your AI runs for you — is just one of these steps wearing a suit. Now you know
         what's behind it.</p>
-        <button class="btn mono" id="btn-restart">⟲ RUN IT AGAIN</button>
-        <button class="btn mono btn-ghost" id="btn-jargon-outro">LOOK UP THE JARGON</button>
+        <div class="btn-row">
+          <button class="btn mono b-indigo" id="btn-map-outro">⤢ SEE THE WHOLE LINE</button>
+          <button class="btn mono" id="btn-restart">⟲ RUN IT AGAIN</button>
+          <button class="btn mono btn-ghost" id="btn-jargon-outro">LOOK UP THE JARGON</button>
+        </div>
       </div>
     </section>
 
