@@ -85,17 +85,18 @@ body{
 }
 .hud-progress{
   flex:1;
-  height:12px;
+  height:10px;
   border:1.5px solid var(--ink);
   background:var(--paper);
   box-shadow:2px 2px 0 rgba(34,36,43,.25);
   max-width:520px;
   margin:0 auto;
   pointer-events:auto;
+  transition:max-width .5s cubic-bezier(.2,.8,.2,1);
 }
 
-/* ---------- timeline scrubber (header bar + map panel bar) ----------
-   Drag anywhere = scrub. Click a stop = snap to that step.
+/* ---------- journey timeline (the header bar) ----------
+   Drag anywhere = move through the journey. Click a stop = jump to it.
    The diamond playhead echoes the gem that travels the pipeline. */
 .scrub{
   position:relative;
@@ -119,7 +120,7 @@ body{
 }
 .scrub-gem{
   display:block;
-  width:13px;height:13px;
+  width:12px;height:12px;
   background:var(--paper);
   border:2px solid var(--ink);
   box-shadow:2px 2px 0 rgba(34,36,43,.35);
@@ -452,64 +453,15 @@ body{
 #track{transition:opacity .45s}
 body.map-mode #track{opacity:0;pointer-events:none}
 body.map-mode #track .copy{pointer-events:none}
-#map-panel{
-  position:fixed;
-  left:0;right:0;bottom:0;
-  z-index:45;
-  padding:0 22px 18px;
-  transform:translateY(112%);
-  transition:transform .55s cubic-bezier(.2,.8,.2,1);
-  pointer-events:none;
-}
-body.map-mode #map-panel{transform:none;pointer-events:auto}
-.map-inner{
-  max-width:1100px;
-  margin:0 auto;
-  background:var(--paper);
-  border:2px solid var(--ink);
-  box-shadow:7px 7px 0 rgba(34,36,43,.9);
-  padding:16px 22px 14px;
-}
-.map-top{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:14px;
-  margin-bottom:10px;
-}
-.map-top .kicker{margin-bottom:8px}
-.map-caption{
-  font-family:'Bricolage Grotesque';
-  font-weight:700;
-  font-size:18px;
-  letter-spacing:-.01em;
-  display:flex;
-  align-items:center;
-  flex-wrap:wrap;
-  gap:10px;
-  min-height:26px;
-}
-.map-caption .machine{
-  font-family:'JetBrains Mono';
-  font-size:10px;font-weight:700;letter-spacing:.1em;
-  padding:3px 8px;
-  border:1.5px solid currentColor;
-}
-.map-scrub{
-  height:14px;
-  border:1.5px solid var(--ink);
-  background:var(--paper);
-  box-shadow:2px 2px 0 rgba(34,36,43,.25);
-  margin:14px 0 44px;
-}
-.map-scrub .stop{width:13px;height:13px}
-.map-scrub .stop-lbl.always{
+/* the header timeline widens and labels every step */
+body.map-mode .hud-progress{max-width:760px}
+body.map-mode .stop-lbl{
   display:block;
   position:absolute;
-  top:15px;left:50%;
+  top:14px;left:50%;
   transform:translateX(-50%);
   font-family:'JetBrains Mono';
-  font-size:9px;font-weight:700;letter-spacing:.06em;
+  font-size:8px;font-weight:700;letter-spacing:.06em;
   line-height:1.4;
   text-align:center;
   white-space:nowrap;
@@ -517,19 +469,9 @@ body.map-mode #map-panel{transform:none;pointer-events:auto}
   pointer-events:none;
   transition:color .2s;
 }
-.map-scrub .stop.done .stop-lbl,.map-scrub .stop.current .stop-lbl{color:var(--ink)}
-.map-scrub .stop.current .stop-lbl{color:var(--blue)}
-.m-computer{color:var(--blue)}
-.m-github{color:var(--indigo-deep)}
-.m-vercel{color:#5a3fd6}
-.map-foot{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px 18px;
-  font-size:10px;font-weight:700;letter-spacing:.1em;
-  color:var(--ink-faint);
-}
-.map-foot .map-tip{margin-left:auto}
+body.map-mode .stop.done .stop-lbl{color:var(--ink)}
+body.map-mode .stop.current .stop-lbl{color:var(--blue)}
+body.map-mode .scrub-hint{display:none} /* the labels already say where you are */
 
 /* ---------- boot overlay ---------- */
 #boot{
@@ -567,15 +509,11 @@ body.map-mode #map-panel{transform:none;pointer-events:auto}
   .brand-text{display:none}
   .hud-btn{padding:7px 9px;font-size:10px}
   .hud-progress{max-width:none;margin:0}
-  body.map-mode .hud-progress{display:none} /* the map panel has the big one */
-  #map-panel{padding:0 10px 10px}
-  .map-inner{padding:14px 16px 12px}
-  .map-scrub{margin-bottom:16px}
-  .map-scrub .stop-lbl.always{display:none}
-  .map-foot .map-tip{display:none}
+  body.map-mode .stop-lbl{display:none} /* no room on a phone; the step chip and hover hint cover it */
+  body.map-mode .scrub-hint{display:block}
 }
 
 @media (prefers-reduced-motion:reduce){
   .hero-chip{animation:none}
-  #map-panel,#track{transition:none}
+  #track,.hud-progress{transition:none}
 }

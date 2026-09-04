@@ -22,7 +22,7 @@
       <span class="brand-mark">g</span>
       <span class="brand-text">HOW YOUR CODE<br>GOES LIVE</span>
     </a>
-    <!-- timeline scrubber: drag to scrub, click a stop to snap (built by JS) -->
+    <!-- journey timeline: drag to move through it, click a stop to jump (built by JS) -->
     <div class="hud-progress" id="hud-progress" aria-label="Journey timeline"></div>
     <div class="hud-step mono" id="hud-step">BOOT</div>
     <button class="hud-btn mono" id="btn-map" aria-pressed="false" title="Zoom out to see the whole pipeline">⤢ MAP</button>
@@ -65,26 +65,6 @@
     </section>
 
   </main>
-
-  <!-- MAP mode panel: the whole line as a labeled, scrubbable timeline -->
-  <aside id="map-panel" aria-label="Pipeline map">
-    <div class="map-inner">
-      <div class="map-top">
-        <div>
-          <div class="kicker mono">THE WHOLE LINE · DRAG TO SCRUB</div>
-          <div class="map-caption" id="map-caption"></div>
-        </div>
-        <button class="hud-btn mono" id="btn-map-close" aria-label="Close map">✕ CLOSE MAP</button>
-      </div>
-      <div class="map-scrub" id="map-scrub"></div>
-      <div class="map-foot mono">
-        <span class="m-computer">■ YOUR COMPUTER</span>
-        <span class="m-github">■ GITHUB</span>
-        <span class="m-vercel">■ VERCEL</span>
-        <span class="map-tip">SCROLL · DRAG · ← → KEYS · ESC CLOSES</span>
-      </div>
-    </div>
-  </aside>
 
   <!-- JARGON overlay (built by JS) -->
   <div id="jargon" role="dialog" aria-modal="true" aria-label="Jargon buster" hidden>

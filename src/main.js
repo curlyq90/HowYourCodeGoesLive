@@ -71,15 +71,16 @@ lenis.on('scroll', ScrollTrigger.update);
 gsap.ticker.add(t => { lenis.raf(t * 1000); });
 gsap.ticker.lagSmoothing(0);
 
-// ---------- timeline scrubbers (header bar + map-mode bar) ----------
-// One builder, two instances. Drag anywhere on a bar and the page
-// scrolls with you — camera, gem and step events all follow. Click a
-// step stop to snap to that step; hover to see which step is where.
+// ---------- journey timeline (the header bar) ----------
+// Drag anywhere on the bar and the page scrolls with you — camera, gem
+// and step events all follow. Click a step stop to jump to that step;
+// hover to see which step is where. In map mode the bar widens and
+// shows every step's name.
 const scrubbers = [];
 const sections = () => [...document.querySelectorAll('.beat')];
 const clamp01 = v => Math.min(1, Math.max(0, v));
 
-function buildScrubber(host, { labels = false } = {}) {
+function buildScrubber(host) {
   host.innerHTML = '';
   host.classList.add('scrub');
   host.setAttribute('role', 'slider');
@@ -87,7 +88,7 @@ function buildScrubber(host, { labels = false } = {}) {
   host.setAttribute('aria-valuemin', '0');
   host.setAttribute('aria-valuemax', '100');
   host.setAttribute('aria-valuenow', '0');
-  host.title = 'Drag to scrub through the journey';
+  host.title = 'Drag to move through the journey';
 
   const fill = document.createElement('div');
   fill.className = 'scrub-fill';
@@ -99,9 +100,7 @@ function buildScrubber(host, { labels = false } = {}) {
     stop.className = `stop ${m.cls}`;
     stop.dataset.stop = i + 1;
     stop.setAttribute('aria-label', `Step ${i + 1}: ${b.label}`);
-    stop.innerHTML = labels
-      ? `<span class="stop-lbl always">${String(i + 1).padStart(2, '0')}<br>${b.label}</span>`
-      : '';
+    stop.innerHTML = `<span class="stop-lbl">${String(i + 1).padStart(2, '0')}<br>${b.label}</span>`;
     // keyboard activation only — pointer clicks are handled by the drag logic below
     stop.addEventListener('click', e => { if (e.detail === 0) snapToBeat(i + 1); });
     host.appendChild(stop);
@@ -117,7 +116,7 @@ function buildScrubber(host, { labels = false } = {}) {
   hint.className = 'scrub-hint mono';
   host.appendChild(hint);
 
-  // --- pointer: hover hint, click-to-snap, drag-to-scrub ---
+  // --- pointer: hover hint, click to jump, drag to move ---
   let rect = null, downX = 0, dragging = false, downStop = null;
   const pctAt = e => clamp01((e.clientX - rect.left) / rect.width);
   host.addEventListener('pointerdown', e => {
@@ -213,7 +212,6 @@ function setScrubPct(pct) {
 }
 
 buildScrubber(document.getElementById('hud-progress'));
-buildScrubber(document.getElementById('map-scrub'), { labels: true });
 
 // ---------- camera scrub: whole track → progress 0..11 ----------
 const N_KEYS = 11; // intro(0) .. outro(11)
@@ -241,17 +239,6 @@ function setHud(beatIdx) {
     s.classList.toggle('done', n < beatIdx);
     s.classList.toggle('current', n === beatIdx);
   });
-  // map-mode caption
-  const cap = document.getElementById('map-caption');
-  if (beatIdx <= 0) {
-    cap.innerHTML = `<span class="machine m-computer">YOUR COMPUTER</span><b>START</b> — nothing has changed yet`;
-  } else if (beatIdx > BEATS.length) {
-    cap.innerHTML = `<span class="machine m-vercel">VERCEL</span><b>DONE</b> — the whole loop, laptop to live`;
-  } else {
-    const b = BEATS[beatIdx - 1];
-    const m = MACHINES[b.machine];
-    cap.innerHTML = `<span class="machine ${m.cls}">${m.name}</span><b>STEP ${String(beatIdx).padStart(2, '0')}</b> — ${b.title}`;
-  }
 }
 
 let activeBeat = 0;
@@ -371,9 +358,9 @@ document.addEventListener('keydown', e => {
 
 // ---------- map mode: zoom all the way out to the whole line ----------
 // The camera pulls back to an aerial view of the entire pipeline, the
-// text cards fade away, and the bottom panel becomes a labeled timeline.
-// Scrolling, dragging, and arrow keys still move the beacon — and still
-// fire each step's animation as you cross it.
+// text cards fade away, and the header timeline widens to show every
+// step's name. Scrolling, dragging, and arrow keys still move the
+// beacon — and still fire each step's animation as you cross it.
 let mapOn = false;
 const btnMap = document.getElementById('btn-map');
 function setMap(on) {
@@ -385,7 +372,6 @@ function setMap(on) {
   world.setOverview(on);
 }
 btnMap.addEventListener('click', () => setMap(!mapOn));
-document.getElementById('btn-map-close').addEventListener('click', () => setMap(false));
 document.getElementById('btn-map-outro').addEventListener('click', () => setMap(true));
 
 // ---------- jargon overlay ----------
