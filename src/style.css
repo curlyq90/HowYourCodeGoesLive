@@ -517,3 +517,75 @@ body.map-mode .scrub-hint{display:none} /* the labels already say where you are 
   .hero-chip{animation:none}
   #track,.hud-progress{transition:none}
 }
+
+/* Refinements keep the original paper, ink, and physical pipeline. */
+[hidden]{display:none!important}
+:root{--ink-faint:#626675;--blue-text:#2855c6;--purple-text:#593ac9}
+.hud-header{background:var(--paper);border-bottom:1px solid var(--line)}
+.hud-btn{min-height:44px}
+.hud-progress:focus-visible{outline:3px solid var(--blue);outline-offset:7px}
+.copy{opacity:1;transform:none}
+.copy h1,.copy h2{text-wrap:balance}
+.copy-hero{width:min(650px,92vw)}
+.copy .creator-note{border-top:1px solid var(--line);padding-top:14px;margin-top:18px;font-size:14px}
+.copy .journey-context{font-size:12px;color:var(--ink-soft);line-height:1.5}
+.hero-chip{margin-top:20px;animation:none}
+.copy .change-location{display:flex;align-items:flex-start;gap:10px;color:var(--blue-text);font-size:13px;font-weight:600;line-height:1.5;margin-top:18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.mini-gem{width:10px;height:10px;flex:0 0 10px;background:var(--blue);border:1px solid var(--ink);transform:rotate(45deg);margin:5px 2px 0}
+.xp-head{min-height:44px;color:var(--blue-text);letter-spacing:.07em}
+.xp-body,.xp.open .xp-body{max-height:none;overflow:visible;transition:none}
+.xp-pad{overflow-wrap:anywhere}
+.xp-pad p{font-size:13.5px}
+.stepno{flex-wrap:wrap;font-size:10px}
+.stepno .m-computer,.kicker{color:var(--blue-text)}
+.simulation-note{display:block;margin-top:12px;font-size:12px;line-height:1.5;color:var(--ink-soft)}
+.takeaways{padding-left:20px;margin:16px 0;line-height:1.6;font-size:15px}
+.takeaways li+li{margin-top:12px}
+.source-link{display:inline-block;color:var(--blue-text);font-size:14px;line-height:1.5;text-underline-offset:4px;margin-top:16px}
+.jargon-chips{display:block}
+.term-group h3{font-size:14px;margin:22px 0 10px}
+.term-buttons{display:flex;flex-wrap:wrap;gap:9px}
+.jargon-chips button{min-height:44px}
+.jargon-chips button.active{background:var(--purple-text)}
+.jargon-term{color:var(--purple-text)}
+.jargon-def{position:sticky;bottom:16px;box-shadow:4px 4px 0 var(--ink)}
+#map-index{position:fixed;z-index:30;top:110px;left:6vw;right:6vw;display:grid;grid-template-columns:repeat(3,1fr);gap:30px;background:var(--paper);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:20px 26px;max-height:calc(100dvh - 135px);overflow:auto}
+#map-index h2{font-family:'Bricolage Grotesque';font-size:22px;margin:0 0 12px}
+#map-index button{display:block;background:none;border:0;border-bottom:1px solid var(--line);color:var(--ink);font:600 12px 'JetBrains Mono';text-align:left;width:100%;min-height:44px;padding:10px;cursor:pointer}
+#map-index button:hover,#map-index button[aria-current]{background:#e6edff;color:var(--blue-text)}
+body.map-mode .stop-lbl{display:none}
+#render-notice{position:relative;z-index:20;margin:95px 6vw 0;padding:16px;border:1px solid var(--line);background:var(--paper2);line-height:1.5}
+.reading-mode #gl{display:none}
+.reading-mode .beat{min-height:0;padding:35px 6vw;justify-content:center}
+.reading-mode .copy{width:min(680px,100%);opacity:1!important;transform:none!important}
+.reading-mode .copy>*{opacity:1!important;transform:none!important}
+.reading-mode .beat-intro{padding-top:35px}
+@media(max-width:760px){
+  .hud-header{gap:8px;padding:10px 12px}
+  .hud-btn{font-size:9px;padding:8px;letter-spacing:.04em}
+  .brand-mark{width:30px;height:30px}
+  .beat{padding:90px 5vw;min-height:145vh}
+  .beat-intro{padding-top:100px;min-height:125vh}
+  .copy{padding:22px 20px;width:100%}
+  .copy h1{font-size:clamp(32px,8.6vw,48px)}
+  .copy h2{font-size:28px}
+  .copy p{font-size:14px}
+  .copy .creator-note{font-size:13px}
+  .copy .journey-context{font-size:11px}
+  .copy .change-location{font-size:12px}
+  .kicker{font-size:9px;letter-spacing:.07em;max-width:100%}
+  .hud-progress{min-width:35px}
+  .stop{width:7px;height:10px}
+  #map-index{top:85px;left:5vw;right:5vw;grid-template-columns:1fr;gap:18px;padding:20px;max-height:calc(100dvh - 110px)}
+  #map-index section{display:flex;flex-wrap:wrap;gap:5px}
+  #map-index h2{width:100%;font-size:20px;margin-bottom:3px}
+  #map-index button{width:auto;border:1px solid var(--line)}
+  .jargon-inner{padding:25px 5vw 50px}
+  .jargon-head{gap:12px}
+  .jargon-def{padding:16px;bottom:8px}
+  .jargon-text{font-size:14px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  .copy,.copy>*{opacity:1!important;transform:none!important}
+}

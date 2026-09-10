@@ -7,16 +7,21 @@ what actually happens between "I asked my AI for a change" and "it's live on my 
 
 You follow a single code change (a glowing gem) through the whole pipeline:
 
-1. **Branch** — spin off a private copy of the code
-2. **Worktree** *(optional)* — two branches open at once
-3. **Edit** — you (or your AI pair — Claude Code, Cursor) change the files
-4. **Commit** — seal a labeled save point
+1. **Branch** — start a separate line of development
+2. **Worktree (optional)** — open another branch in its own working folder
+3. **Edit** — you or your AI pair change the files
+4. **Commit** — record a labeled snapshot
 5. **Push** — upload it to GitHub
-6. **Pull Request** — propose folding it into the main app
-7. **Checks** — CI robots inspect the code (Lint · Typecheck · Test · Build)
-8. **Preview** — Vercel builds a private, working copy at a temporary URL
-9. **Merge** — the change joins `main`, the source of truth
-10. **Live** — Vercel automatically publishes it to the real domain
+6. **Pull Request** — propose and review the changes
+7. **Checks** — configured CI jobs inspect the code
+8. **Preview** — Vercel builds a separate deployment for testing
+9. **Merge** — the change joins `main`
+10. **Live** — a successful production deployment serves the new version
+
+Worktrees appear as optional step 2, with their own scene and explanations.
+This illustrates one configured GitHub + Vercel workflow, not universal defaults.
+Preview access depends on deployment protection; checks block merging only when required.
+The action buttons and status messages are simulations.
 
 Every step pairs a 3D scene with plain-English copy, real developer terminology
 (tap to expand), and an everyday analogy. There's also a **jargon buster** — tap
@@ -59,3 +64,17 @@ Key files:
 Exactly the way the site teaches: this repo is connected to Vercel.
 Every push to `main` automatically rebuilds and publishes the live site.
 Pull requests get their own preview deployments.
+
+## Public-sharing refinements
+
+The page includes an ops-builder origin note, practical questions to ask before
+approving AI changes, a grouped glossary, readable map navigation, and Open Graph
+metadata. `public/social-preview.png` is the 1200 × 630 sharing card. Regenerate it
+with `scripts/social-preview.py` (Pillow and macOS Arial fonts).
+
+Reduced-motion preferences disable smooth navigation and use static scene states.
+If WebGL cannot initialize, the full written journey remains available.
+
+Validation covers the production build, desktop/mobile layouts, chapter navigation,
+disclosures, glossary keyboard containment/return focus, simulated actions, restart,
+and temporary reduced-motion/WebGL-failure fixtures.
