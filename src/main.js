@@ -6,11 +6,14 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { createWorld } from './world.js';
-import { BEATS, MACHINES, TERMS } from './content.js';
+import { BEATS, MACHINES, TERMS, JOURNEY_STATES, TERM_GROUPS } from './content.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+let REDUCED = motionPreference.matches;
+const motionOptions = duration => REDUCED ? { immediate: true } : { duration };
+const CAMERA_KEYS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
 // ---------- build beat sections ----------
 const beatsHost = document.getElementById('beats');
@@ -18,25 +21,27 @@ beatsHost.outerHTML = BEATS.map((b, i) => {
   const m = MACHINES[b.machine];
   const action = b.action ? `
     <button class="btn mono ${b.action.cls}" data-event="${b.action.event}">${b.action.label}</button>
-    <div class="status-line" data-status="${b.action.event}" hidden></div>` : '';
+    <div class="status-line" role="status" data-status="${b.action.event}" hidden></div>` : '';
   return `
   <section class="beat" id="beat-${b.id}" data-beat="${i + 1}" data-side="${b.side}">
     <div class="copy">
       <div class="stepno mono">
         <span class="machine ${m.cls}">${m.name}</span>
-        <span>STEP ${String(i + 1).padStart(2, '0')} / 10</span>
+        <span>STEP ${String(i + 1).padStart(2, '0')} / ${BEATS.length}</span>
       </div>
       <h2>${b.title}</h2>
       <p>${b.plain}</p>
+      <p class="change-location"><span class="mini-gem" aria-hidden="true"></span>${JOURNEY_STATES[i]}</p>
       <div class="xp">
-        <button class="xp-head" aria-expanded="false"><span class="xp-arrow">▸</span> IN REAL DEVELOPER TERMS</button>
-        <div class="xp-body"><div class="xp-pad">${b.real}</div></div>
+        <button class="xp-head" aria-expanded="false" aria-controls="real-${b.id}"><span class="xp-arrow">▸</span> IN REAL DEVELOPER TERMS</button>
+        <div class="xp-body" id="real-${b.id}" hidden><div class="xp-pad">${b.real}</div></div>
       </div>
       <div class="xp xp-amber">
-        <button class="xp-head" aria-expanded="false"><span class="xp-arrow">▸</span> THINK OF IT LIKE…</button>
-        <div class="xp-body"><div class="xp-pad">${b.analogy}</div></div>
+        <button class="xp-head" aria-expanded="false" aria-controls="analogy-${b.id}"><span class="xp-arrow">▸</span> THINK OF IT LIKE…</button>
+        <div class="xp-body" id="analogy-${b.id}" hidden><div class="xp-pad">${b.analogy}</div></div>
       </div>
       ${action}
+      ${b.action ? '<small class="simulation-note">Illustration only — these buttons simulate the process.</small>' : ''}
     </div>
   </section>`;
 }).join('');
@@ -48,6 +53,9 @@ document.addEventListener('click', e => {
   const xp = head.parentElement;
   const open = xp.classList.toggle('open');
   head.setAttribute('aria-expanded', open);
+  xp.querySelector('.xp-body').hidden = !open;
+  ScrollTrigger.refresh();
+  layoutStops();
 });
 
 // ---------- boot overlay ----------
@@ -66,7 +74,13 @@ const bootLines = [
 let world = null;
 
 // ---------- smooth scroll ----------
-const lenis = new Lenis({ lerp: REDUCED ? 1 : 0.1, wheelMultiplier: 0.95 });
+const lenis = new Lenis({ lerp: 0.1, smoothWheel: !REDUCED, wheelMultiplier: 0.95 });
+motionPreference.addEventListener('change', event => {
+  REDUCED = event.matches;
+  lenis.options.smoothWheel = !REDUCED;
+  if (REDUCED) lenis.scrollTo(window.scrollY, { immediate: true });
+  if (world) world.reducedMotion = REDUCED;
+});
 lenis.on('scroll', ScrollTrigger.update);
 gsap.ticker.add(t => { lenis.raf(t * 1000); });
 gsap.ticker.lagSmoothing(0);
@@ -83,11 +97,9 @@ const clamp01 = v => Math.min(1, Math.max(0, v));
 function buildScrubber(host) {
   host.innerHTML = '';
   host.classList.add('scrub');
-  host.setAttribute('role', 'slider');
+  host.setAttribute('role', 'group');
   host.setAttribute('tabindex', '0');
-  host.setAttribute('aria-valuemin', '0');
-  host.setAttribute('aria-valuemax', '100');
-  host.setAttribute('aria-valuenow', '0');
+
   host.title = 'Drag to move through the journey';
 
   const fill = document.createElement('div');
@@ -195,33 +207,45 @@ function showHint(hint, pct) {
 
 function scrollToPct(pct, immediate) {
   const target = pct * lenis.limit;
-  lenis.scrollTo(target, immediate ? { immediate: true } : { duration: 0.8 });
+  lenis.scrollTo(target, immediate ? { immediate: true } : motionOptions(0.8));
 }
 
 function snapToBeat(n) {
   const section = document.getElementById(`beat-${BEATS[n - 1].id}`);
-  lenis.scrollTo(section, { duration: 1.4, offset: -window.innerHeight * 0.05 });
+  if (mapOn) setMap(false);
+  const target = section.offsetTop + section.offsetHeight / 2 - window.innerHeight / 2;
+  lenis.scrollTo(target, motionOptions(1.4));
 }
 
 function setScrubPct(pct) {
   scrubbers.forEach(s => {
     s.fill.style.width = `${pct * 100}%`;
     s.head.style.left = `${pct * 100}%`;
-    s.host.setAttribute('aria-valuenow', Math.round(pct * 100));
+    s.host.setAttribute('aria-label', `Journey timeline: ${Math.round(pct * 100)}% complete. Use arrow keys to change chapter.`);
   });
 }
 
 buildScrubber(document.getElementById('hud-progress'));
 
 // ---------- camera scrub: whole track → progress 0..11 ----------
-const N_KEYS = 11; // intro(0) .. outro(11)
+// Map each chapter to its original 3D station, including optional worktrees.
+function cameraProgress() {
+  const all = sections();
+  const centers = all.map((section, i) => i === 0 ? 0 :
+    i === all.length - 1 ? document.documentElement.scrollHeight - innerHeight :
+    section.offsetTop + section.offsetHeight / 2 - innerHeight / 2);
+  let i = 0;
+  while (i < centers.length - 2 && window.scrollY > centers[i + 1]) i++;
+  const f = clamp01((window.scrollY - centers[i]) / Math.max(1, centers[i + 1] - centers[i]));
+  return REDUCED ? CAMERA_KEYS[f < 0.5 ? i : i + 1] : CAMERA_KEYS[i] + (CAMERA_KEYS[i + 1] - CAMERA_KEYS[i]) * f;
+}
 ScrollTrigger.create({
   trigger: '#track',
   start: 'top top',
   end: 'bottom bottom',
   scrub: true,
   onUpdate: self => {
-    if (world) world.setProgress(self.progress * N_KEYS);
+    if (world) world.setProgress(cameraProgress());
     setScrubPct(self.progress);
   },
 });
@@ -229,11 +253,16 @@ ScrollTrigger.create({
 // ---------- per-beat triggers: copy reveal + HUD + auto events ----------
 const hudStep = document.getElementById('hud-step');
 const autoFired = new Set();
+let journeyRun = 0;
 
 function setHud(beatIdx) {
   if (beatIdx <= 0) hudStep.textContent = 'BOOT';
   else if (beatIdx > BEATS.length) hudStep.textContent = 'EOF';
-  else hudStep.textContent = `${BEATS[beatIdx - 1].label} ${String(beatIdx).padStart(2, '0')}/10`;
+  else hudStep.textContent = `${BEATS[beatIdx - 1].label} ${String(beatIdx).padStart(2, '0')}/${BEATS.length}`;
+  document.querySelectorAll('[data-chapter]').forEach(button => {
+    if (+button.dataset.chapter === beatIdx) button.setAttribute('aria-current', 'step');
+    else button.removeAttribute('aria-current');
+  });
   document.querySelectorAll('.stop').forEach(s => {
     const n = +s.dataset.stop;
     s.classList.toggle('done', n < beatIdx);
@@ -259,7 +288,7 @@ document.querySelectorAll('.beat').forEach(section => {
   const copy = section.querySelector('.copy');
   const isHero = copy && copy.classList.contains('copy-hero');
 
-  if (copy && !isHero) {
+  if (copy && !isHero && !REDUCED) {
     gsap.set(copy, { opacity: 0, y: REDUCED ? 0 : 30 });
     const showCopy = () => {
       gsap.to(copy, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' });
@@ -278,7 +307,7 @@ document.querySelectorAll('.beat').forEach(section => {
       onLeave: () => gsap.to(copy, { opacity: 0, y: REDUCED ? 0 : -24, duration: 0.35, overwrite: 'auto' }),
       onLeaveBack: () => gsap.to(copy, { opacity: 0, y: REDUCED ? 0 : 30, duration: 0.35, overwrite: 'auto' }),
     });
-  } else if (copy) {
+  } else if (copy && !REDUCED) {
     ScrollTrigger.create({
       trigger: section,
       start: 'top top',
@@ -303,7 +332,8 @@ function maybeAutoFire(beatIdx) {
   const beat = BEATS[beatIdx - 1];
   if (!beat || !beat.action || autoFired.has(beat.action.event)) return;
   autoFired.add(beat.action.event);
-  setTimeout(() => fireEvent(beat.action.event), 700);
+  const version = journeyRun;
+  setTimeout(() => { if (version === journeyRun) fireEvent(beat.action.event); }, REDUCED ? 0 : 700);
 }
 
 // ---------- interactive buttons + status lines ----------
@@ -318,13 +348,18 @@ function fireEvent(event) {
     status.textContent = '▸ ' + beat.action.busyStatus;
   }
   if (btn) btn.disabled = true;
+  const version = journeyRun;
   world.trigger(event).then(() => {
+    if (version !== journeyRun) return;
     if (status) {
       status.hidden = false;
       status.className = 'status-line ok';
       status.textContent = '✓ ' + beat.action.doneStatus;
     }
     if (btn) { btn.disabled = false; btn.textContent = '✓ DONE'; }
+    if (event === 'checks') {
+      document.querySelector('#beat-checks .change-location').innerHTML = '<span class="mini-gem" aria-hidden="true"></span>Example checks passed · review the change and preview';
+    }
   });
 }
 
@@ -334,16 +369,20 @@ document.addEventListener('click', e => {
   const brand = e.target.closest('.brand');
   if (brand) {
     e.preventDefault();
-    lenis.scrollTo(0, { duration: 1.6 });
+    if (mapOn) setMap(false);
+    lenis.scrollTo(0, motionOptions(1.6));
   }
 });
 
 // ---------- run it again: rewind the world, then fly back to the top ----------
 function resetJourney() {
+  journeyRun++;
   if (world) world.reset();
   autoFired.clear();
   BEATS.forEach(b => {
     if (!b.action) return;
+    const index = BEATS.indexOf(b);
+    document.querySelector(`#beat-${b.id} .change-location`).innerHTML = `<span class="mini-gem" aria-hidden="true"></span>${JOURNEY_STATES[index]}`;
     const btn = document.querySelector(`[data-event="${b.action.event}"]`);
     const status = document.querySelector(`[data-status="${b.action.event}"]`);
     if (btn) { btn.disabled = false; btn.textContent = b.action.label; }
@@ -353,13 +392,14 @@ function resetJourney() {
 document.getElementById('btn-restart').addEventListener('click', () => {
   if (mapOn) setMap(false);
   resetJourney();
-  lenis.scrollTo(0, { duration: 2.2 });
+  lenis.scrollTo(0, motionOptions(2.2));
 });
 
 // ---------- keyboard: arrows step through beats ----------
 document.addEventListener('keydown', e => {
   if (!document.getElementById('jargon').hidden) return;
   if (e.key === 'Escape' && mapOn) { setMap(false); return; }
+  if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
   if (!['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft'].includes(e.key)) return;
   const all = sections();
   const next = (e.key === 'ArrowDown' || e.key === 'ArrowRight')
@@ -367,7 +407,7 @@ document.addEventListener('keydown', e => {
     : Math.max(activeBeat - 1, 0);
   const target = all.find(s => +s.dataset.beat === next) || all[0];
   e.preventDefault();
-  lenis.scrollTo(target, { duration: 1.1, offset: -window.innerHeight * 0.05 });
+  lenis.scrollTo(Math.max(0, target.offsetTop + target.offsetHeight / 2 - innerHeight / 2), motionOptions(1.1));
 });
 
 // ---------- map mode: zoom all the way out to the whole line ----------
@@ -378,15 +418,42 @@ document.addEventListener('keydown', e => {
 let mapOn = false;
 const btnMap = document.getElementById('btn-map');
 function setMap(on) {
-  if (!world || on === mapOn) return;
+  if (on === mapOn) return;
   mapOn = on;
   document.body.classList.toggle('map-mode', on);
+  document.getElementById('map-index').hidden = !on;
+  document.getElementById('track').inert = on;
+  if (on) btnMap.focus({ preventScroll: true });
   btnMap.textContent = on ? '✕ CLOSE MAP' : '⤢ MAP';
   btnMap.setAttribute('aria-pressed', String(on));
-  world.setOverview(on);
+  if (world) world.setOverview(on);
 }
 btnMap.addEventListener('click', () => setMap(!mapOn));
 document.getElementById('btn-map-outro').addEventListener('click', () => setMap(true));
+
+// Readable chapter navigation complements the distant 3D labels.
+const mapIndex = document.getElementById('map-index');
+for (const [title, ids] of [
+  ['Your computer', ['branch', 'worktree', 'edit', 'commit']],
+  ['GitHub', ['push', 'pr', 'checks', 'merge']],
+  ['Vercel', ['preview', 'live']],
+]) {
+  const group = document.createElement('section');
+  group.innerHTML = `<h2>${title}</h2>`;
+  ids.forEach(id => {
+    const i = BEATS.findIndex(b => b.id === id);
+    const button = document.createElement('button');
+    button.textContent = `${i + 1}. ${BEATS[i].label}`;
+    button.dataset.chapter = i + 1;
+    button.addEventListener('click', () => {
+      snapToBeat(i + 1);
+      document.querySelector(`#beat-${id} h2`).focus({ preventScroll: true });
+    });
+    group.appendChild(button);
+  });
+  mapIndex.appendChild(group);
+}
+document.querySelectorAll('.beat h2').forEach(h => h.tabIndex = -1);
 
 // ---------- jargon overlay ----------
 const jargon = document.getElementById('jargon');
@@ -395,37 +462,60 @@ const termEl = document.getElementById('jargon-term');
 const textEl = document.getElementById('jargon-text');
 let lastFocus = null;
 
-TERMS.forEach(([term, def], i) => {
-  const chip = document.createElement('button');
-  chip.className = 'mono' + (i === 0 ? ' active' : '');
-  chip.textContent = term;
-  chip.addEventListener('click', () => {
-    chipsHost.querySelectorAll('button').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    termEl.textContent = term;
-    textEl.textContent = def;
+function selectTerm(term) {
+  const entry = TERMS.find(([name]) => name === term) || TERMS[0];
+  chipsHost.querySelectorAll('button').forEach(button => {
+    const active = button.textContent === entry[0];
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
   });
-  chipsHost.appendChild(chip);
+  termEl.textContent = entry[0];
+  textEl.textContent = entry[1];
+}
+TERM_GROUPS.forEach(([label, terms]) => {
+  const group = document.createElement('section');
+  group.className = 'term-group';
+  group.innerHTML = `<h3>${label}</h3><div class="term-buttons"></div>`;
+  terms.forEach(term => {
+    const chip = document.createElement('button');
+    chip.className = 'mono';
+    chip.textContent = term;
+    chip.addEventListener('click', () => selectTerm(term));
+    group.querySelector('.term-buttons').appendChild(chip);
+  });
+  chipsHost.appendChild(group);
 });
-termEl.textContent = TERMS[0][0];
-textEl.textContent = TERMS[0][1];
+selectTerm('repo');
+const modalBackground = [...document.body.children].filter(el => el !== jargon && el.tagName !== 'SCRIPT');
+const previousInert = new Map();
 
 function openJargon() {
   lastFocus = document.activeElement;
   jargon.hidden = false;
+  selectTerm(({ pr: 'pull request', checks: 'CI', preview: 'preview deployment', live: 'production', edit: 'working directory' })[BEATS[activeBeat - 1]?.id] || BEATS[activeBeat - 1]?.id || 'repo');
+  modalBackground.forEach(el => { previousInert.set(el, el.inert); el.inert = true; });
   lenis.stop();
   document.getElementById('btn-jargon-close').focus();
 }
 function closeJargon() {
   jargon.hidden = true;
+  previousInert.forEach((value, el) => { el.inert = value; });
+  previousInert.clear();
   lenis.start();
-  if (lastFocus) lastFocus.focus();
+  if (lastFocus) lastFocus.focus({ preventScroll: true });
 }
 document.getElementById('btn-jargon').addEventListener('click', openJargon);
 document.getElementById('btn-jargon-outro').addEventListener('click', openJargon);
 document.getElementById('btn-jargon-close').addEventListener('click', closeJargon);
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !jargon.hidden) closeJargon();
+  if (jargon.hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeJargon(); }
+  if (e.key === 'Tab') {
+    const items = [...jargon.querySelectorAll('button')];
+    const first = items[0], last = items.at(-1);
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
 });
 
 // ---------- scroll hint fades after first real scroll ----------
@@ -464,25 +554,38 @@ async function bootUp() {
     }
   })();
   // make sure the faces we bake into textures are actually loaded
-  await Promise.all([
+  await Promise.race([Promise.all([
     document.fonts.load('600 16px "JetBrains Mono"'),
     document.fonts.load('700 16px "JetBrains Mono"'),
     document.fonts.load('800 32px "Bricolage Grotesque"'),
     document.fonts.load('500 14px "Instrument Sans"'),
-  ]).catch(() => {});
-  await document.fonts.ready;
+  ]).catch(() => {}), new Promise(resolve => setTimeout(resolve, 2500))]);
+  // Font failures must never prevent access to the explanation.
   await typing;
 
-  world = createWorld(document.getElementById('gl'));
-  world.reducedMotion = REDUCED;
-  layoutStops();
-  // sync camera + scrubbers to wherever the page is (e.g. reload mid-scroll)
-  const st = ScrollTrigger.getAll().find(t => t.vars.trigger === '#track');
-  world.setProgress((st ? st.progress : 0) * N_KEYS);
-  setScrubPct(st ? st.progress : 0);
-  syncHud();
+  try {
+    world = createWorld(document.getElementById('gl'));
+    world.reducedMotion = REDUCED;
+    layoutStops();
+    // sync camera + scrubbers to wherever the page is (e.g. reload mid-scroll)
+    const st = ScrollTrigger.getAll().find(t => t.vars.trigger === '#track');
+    world.setProgress(cameraProgress());
+    setScrubPct(st ? st.progress : 0);
+    syncHud();
+    maybeAutoFire(activeBeat);
 
-  await new Promise(r => setTimeout(r, 200));
+  } catch (error) {
+    console.warn('3D view unavailable; showing the reading experience.', error);
+    document.body.classList.add('reading-mode');
+    document.getElementById('render-notice').hidden = false;
+    document.querySelectorAll('[data-event], .simulation-note').forEach(el => { el.hidden = true; });
+    ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+    gsap.set('.copy, .copy > *', { clearProps: 'all' });
+    layoutStops();
+    syncHud();
+    lenis.on('scroll', () => { syncHud(); setScrubPct(window.scrollY / Math.max(1, lenis.limit)); });
+  }
+  await new Promise(r => setTimeout(r, REDUCED ? 0 : 200));
   boot.classList.add('gone');
   setTimeout(() => boot.remove(), 600);
 }

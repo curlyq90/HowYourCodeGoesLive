@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How your code goes live — inside the machine</title>
 <meta name="description" content="A scroll-driven 3D tour of how one code change travels from your laptop through GitHub and Vercel to your live site — in plain English, for non-engineers.">
+<link rel="canonical" href="https://how-your-code-goes-live.vercel.app/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="How your code goes live">
+<meta property="og:description" content="Built by an ops person learning with AI. Follow one code change from your computer through GitHub and Vercel to a live website.">
+<meta property="og:url" content="https://how-your-code-goes-live.vercel.app/">
+<meta property="og:image" content="https://how-your-code-goes-live.vercel.app/social-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="How your code goes live: one change travels from your computer through GitHub and Vercel to the world.">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%233D6FF0'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-weight='800' font-size='20' fill='%23fff' text-anchor='middle'%3Eg%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +24,7 @@
 <body>
 
   <!-- fixed WebGL world -->
-  <canvas id="gl"></canvas>
+  <canvas id="gl" aria-hidden="true"></canvas>
 
   <!-- fixed chrome -->
   <header class="hud-header">
@@ -29,17 +39,19 @@
     <button class="hud-btn mono" id="btn-jargon" aria-haspopup="dialog">JARGON</button>
   </header>
 
+  <p id="render-notice" role="status" hidden>The 3D view couldn’t load. You can still read every step and explore the explanations below.</p>
+
   <!-- scroll track: sections drive the camera -->
   <main id="track">
 
     <!-- INTRO -->
     <section class="beat beat-intro" id="top" data-beat="0">
       <div class="copy copy-hero">
-        <div class="kicker mono">FOR THE NON-ENGINEER FOUNDER</div>
+        <div class="kicker mono">FOR PEOPLE BUILDING WITH AI</div>
         <h1>The invisible journey of one code change.</h1>
-        <p class="lede">You ask your AI for a change, open a PR, and merge — and it goes live.
-        But a lot happens in between that you never see. Scroll to step inside the machine and
-        follow a single change from your laptop to <span class="mono ink">mypicnic.app</span>.</p>
+        <p class="lede">What happens after your AI changes the code? Follow one change from your computer, through GitHub and Vercel, to a live website.</p>
+        <p class="creator-note">I’m an ops person building with AI. I made this because I wanted to understand the why and the how behind what I was approving.</p>
+        <p class="journey-context">10 steps · A fictional app called Picnic · One common GitHub + Vercel setup</p>
         <div class="hero-chip mono" id="hero-chip">▼ SCROLL TO ENTER</div>
       </div>
     </section>
@@ -51,11 +63,16 @@
     <section class="beat beat-outro" data-beat="11">
       <div class="copy copy-outro">
         <div class="kicker mono">THE WHOLE LOOP</div>
-        <h2>That's the entire trick.</h2>
-        <p>Branch → edit → commit → push → pull request → checks → preview →
-        merge → live. Every button you press on GitHub or Vercel — and every command
-        your AI runs for you — is just one of these steps wearing a suit. Now you know
-        what's behind it.</p>
+        <h2>Know what you’re saying yes to.</h2>
+        <p>Branch → worktree (optional) → edit → commit → push → pull request → checks → preview → merge → live.</p>
+        <p>Before approving your next AI-generated change, ask:</p>
+        <ul class="takeaways">
+          <li><strong>What changed?</strong> Show me the diff and explain why.</li>
+          <li><strong>What did we verify?</strong> Show me the checks and the working preview.</li>
+          <li><strong>What happens when we ship?</strong> Confirm the environment, data changes, and recovery plan.</li>
+        </ul>
+        <p class="creator-note">Built by an ops person, learning with AI. This journey is the explanation I wanted when I started.</p>
+        <a class="source-link" href="https://github.com/curlyq90/HowYourCodeGoesLive">Explore the source and share feedback on GitHub ↗</a>
         <div class="btn-row">
           <button class="btn mono b-indigo" id="btn-map-outro">⤢ SEE THE WHOLE LINE</button>
           <button class="btn mono" id="btn-restart">⟲ RUN IT AGAIN</button>
@@ -66,6 +83,8 @@
 
   </main>
 
+  <nav id="map-index" aria-label="Pipeline chapters" hidden></nav>
+
   <!-- JARGON overlay (built by JS) -->
   <div id="jargon" role="dialog" aria-modal="true" aria-label="Jargon buster" hidden>
     <div class="jargon-inner">
@@ -73,12 +92,12 @@
         <div>
           <div class="kicker k-vercel mono">SPEAK THE LANGUAGE</div>
           <h2>Jargon buster</h2>
-          <p class="jargon-sub">Tap any term for a one-line, no-nonsense definition.</p>
+          <p class="jargon-sub">Choose a term, grouped by where it belongs in the journey.</p>
         </div>
         <button class="hud-btn mono" id="btn-jargon-close" aria-label="Close">✕ CLOSE</button>
       </div>
       <div class="jargon-chips" id="jargon-chips"></div>
-      <div class="jargon-def">
+      <div class="jargon-def" aria-live="polite" aria-atomic="true">
         <div class="jargon-term" id="jargon-term"></div>
         <p class="jargon-text" id="jargon-text"></p>
       </div>

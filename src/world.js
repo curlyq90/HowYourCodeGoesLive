@@ -634,7 +634,7 @@ export function createWorld(canvas) {
     g.fillText('RSVP reminders', 16, 58);
     g.font = '500 10.5px "Instrument Sans"';
     g.fillStyle = '#8A8E99';
-    g.fillText('Your new feature — running live, just for you.', 16, 76);
+    g.fillText('Your new feature — on a separate preview.', 16, 76);
     g.fillStyle = '#eef3ff';
     g.fillRect(16, 92, W - 32, 10);
     g.fillRect(16, 110, (W - 32) * 0.7, 10);
@@ -814,7 +814,7 @@ export function createWorld(canvas) {
   function setProgress(p) { progress = p; }
 
   function updateCamera() {
-    const p = Math.max(0, Math.min(progress, KEYS.length - 1));
+    const p = Math.max(0, Math.min(api.reducedMotion ? Math.round(progress) : progress, KEYS.length - 1));
     const i = Math.min(Math.floor(p), KEYS.length - 2);
     const f = smooth(p - i);
     const A = KEYS[i], B = KEYS[i + 1];
@@ -841,7 +841,7 @@ export function createWorld(canvas) {
   function updateGem(dt) {
     // fade in near commit beat
     const target = progress > 3.45 ? 1 : 0;
-    gemState.visible += (target - gemState.visible) * Math.min(1, dt * 5);
+    gemState.visible = api.reducedMotion ? target : gemState.visible + (target - gemState.visible) * Math.min(1, dt * 5);
     gem.visible = gemState.visible > 0.02;
     // position from waypoints
     const p = Math.min(Math.max(progress, GEM_KEYS[0][0]), GEM_KEYS[GEM_KEYS.length - 1][0]);
@@ -854,7 +854,7 @@ export function createWorld(canvas) {
       A[2] + (B[2] - A[2]) * f + Math.sin(clockT * 1.7) * 0.16 + gemState.offsetY,
       A[3] + (B[3] - A[3]) * f
     );
-    gem.rotation.y += dt * 0.9;
+    if (!api.reducedMotion) gem.rotation.y += dt * 0.9;
     gem.rotation.x = Math.sin(clockT * 0.8) * 0.18;
     const s = gemState.visible * (1 + overview.mix * 1.8);
     gem.scale.setScalar(Math.max(s, 0.001));
@@ -865,6 +865,23 @@ export function createWorld(canvas) {
   // ============================================================
   const api = { setProgress, setOverview, resize, update, trigger, reset, states: {}, reducedMotion: false };
 
+  let reducedMotion = false;
+  Object.defineProperty(api, 'reducedMotion', {
+    get: () => reducedMotion,
+    set(value) {
+      if (Boolean(value) === reducedMotion) return;
+      reducedMotion = Boolean(value);
+      if (reducedMotion) {
+        const completed = Object.keys(api.states).filter(key => api.states[key] && key !== 'checksRunning');
+        if (api.states.checksRunning) completed.push('checks');
+        reset();
+        completed.forEach(event => trigger(event));
+        gsap.killTweensOf(overview);
+        overview.mix = overview.mix > 0.5 ? 1 : 0;
+      }
+    },
+  });
+
   // Every event animation belongs to a "run". reset() bumps the run, so
   // any delayed step still pending from the previous run quietly no-ops.
   let run = 0;
@@ -874,7 +891,30 @@ export function createWorld(canvas) {
   };
   let mergeNode = null;
 
+  const pendingEvents = new Set();
   function trigger(event) {
+    return new Promise(resolve => {
+      pendingEvents.add(resolve);
+      triggerEvent(event).then(() => { pendingEvents.delete(resolve); resolve(); });
+    });
+  }
+
+  function triggerEvent(event) {
+    if (api.reducedMotion) {
+      api.states[event] = true;
+      switch (event) {
+        case 'commit':
+          gemState.sealed = true; gemMat.wireframe = false; gemMat.opacity = 1;
+          sealRing.material.opacity = 0; hashLbl.visible = true; break;
+        case 'pr': setPRCard(true); bars.visible = false; break;
+        case 'checks':
+          arches.forEach(a => { a.lampMat.color.set(C.green); a.lampMat.emissive.set(C.green); }); break;
+        case 'preview': podIdle.visible = false; podGrp.visible = true; podGrp.scale.setScalar(1); break;
+        case 'merge': mergeMat.opacity = 1; mergeMat.emissiveIntensity = 0.35; break;
+        case 'ship': globeMat.opacity = 0.55; liveLbl.visible = true; liveLbl.scale.setScalar(1); break;
+      }
+      return Promise.resolve();
+    }
     switch (event) {
       case 'commit': return animCommit();
       case 'pr': return animPR();
@@ -1021,6 +1061,8 @@ export function createWorld(canvas) {
   // reset — rewind every event animation to its untouched state
   // ============================================================
   function reset() {
+    pendingEvents.forEach(resolve => resolve());
+    pendingEvents.clear();
     run++;
     gsap.killTweensOf([
       sealRing.position, sealRing.scale, sealRing.material, gemMat, gem.scale, hashLbl.scale,
@@ -1066,6 +1108,7 @@ export function createWorld(canvas) {
   // frame loop
   // ============================================================
   function update(dt) {
+    if (api.reducedMotion) dt = 0;
     clockT += dt;
     updateCamera();
     updateGem(dt);
@@ -1097,7 +1140,7 @@ export function createWorld(canvas) {
     }
 
     // floppies float
-    editGrp.userData.flops.forEach((f, i) => {
+    if (!api.reducedMotion) editGrp.userData.flops.forEach((f, i) => {
       f.position.y += Math.sin(clockT * 1.1 + i * 2.1) * 0.0035;
       f.rotation.y += dt * 0.35;
     });
